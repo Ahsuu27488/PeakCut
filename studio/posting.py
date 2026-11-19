@@ -6,7 +6,7 @@ from pathlib import Path
 
 import json
 
-from . import accounts, alerts, config, creators, ctx, jobs, live
+from . import accounts, alerts, config, creators, ctx, jobs, live, profanity
 
 _lock = threading.RLock()
 _FILE = config.DATA_DIR / "posts.json"
@@ -101,8 +101,11 @@ def on_clip_ready(job, clip):
 
 
 def _caption(clip, creator):
-    tags = " ".join("#" + h for h in clip.get("hashtags", []))
-    return "\n\n".join(x for x in (clip.get("description", ""), tags, creator.get("post_footer", "")) if x)
+    clean = clip.get("clean", "off") != "off"
+    hashtags = profanity.clean_tags(clip.get("hashtags", [])) if clean else clip.get("hashtags", [])
+    tags = " ".join("#" + h for h in hashtags)
+    desc = profanity.clean_text(clip.get("description", "")) if clean else clip.get("description", "")
+    return "\n\n".join(x for x in (desc, tags, creator.get("post_footer", "")) if x)
 
 
 def _post(p):
@@ -117,8 +120,11 @@ def _post(p):
         path = Path(job["dir"]) / "clips" / clip["file"]
         creator = creators.get(job["creator"]) or dict(creators.DEFAULTS, name="clips")
         title, cap = clip.get("title") or clip.get("hook") or "Clip", _caption(clip, creator)
+        if clip.get("clean", "off") != "off":
+            title = profanity.clean_text(title)     # the swear filter: nothing posted says what the clip hides
         if acc["platform"] == "youtube":
-            rid, url = accounts.youtube_upload(acc, path, title, cap + "\n\n#Shorts", clip.get("hashtags", []), creator["privacy"])
+            tags = profanity.clean_tags(clip.get("hashtags", [])) if clip.get("clean", "off") != "off" else clip.get("hashtags", [])
+            rid, url = accounts.youtube_upload(acc, path, title, cap + "\n\n#Shorts", tags, creator["privacy"])
         elif acc["platform"] == "instagram":
             rid, url = accounts.instagram_upload(acc, path, f"{title}\n\n{cap}", job["id"])
         elif acc["platform"] == "tiktok":

@@ -64,6 +64,8 @@ def main() -> int:
                 ("finding the facecam in a gaming stream", ["tests/test_facecam.py"]),
                 ("a small facecam in a busy game, wherever it is", ["tests/test_facecam_positions.py"]),
                 ("YouTube cookies for cloud servers", ["tests/test_youtube_cookies.py"]),
+                ("the swear filter: masked text and bleeped sound", ["tests/test_swear_filter.py"]),
+                ("Settings, Clips & YouTube: facecam place, transcript, cookies", ["tests/test_prefs.py"]),
                 ("fresh installs: ffmpeg, the speech model, AI errors", ["tests/test_tools.py"]),
                 ("the storage folder: full drive, open, move", ["tests/test_storage.py"]),
                 ("security: visitor address, email addresses, Google sign-in, prompts", ["tests/test_hardening.py"]),

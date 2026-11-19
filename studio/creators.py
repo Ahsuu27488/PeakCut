@@ -20,7 +20,7 @@ DEFAULTS = {"name": "", "channel": "", "style": "bounce", "layout": "blur", "cap
             "game": "",
             "trigger_words": "clip that, clip it",
             "autopost": False, "accounts": [], "post_min_score": 75, "post_gap_min": 45, "daily_cap": 6,
-            "privacy": "public", "post_footer": "", "rate_per_1k": 0.0, "channels": {}}
+            "privacy": "public", "post_footer": "", "rate_per_1k": 0.0, "channels": {}, "clean": "off"}
 PLATFORMS = ("youtube", "twitch", "kick")
 
 
@@ -80,6 +80,8 @@ def _clean(data: dict) -> dict:
             v = v if v in ("both", "either") else "both"
         elif k == "privacy":
             v = v if v in ("public", "unlisted", "private") else "public"
+        elif k == "clean":                       # the swear filter
+            v = v if v in ("off", "text", "bleep") else "off"
         else:
             v = str(v).strip()[:300]
         out[k] = v

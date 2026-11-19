@@ -5,7 +5,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from . import config, roman
+from . import config, prefs, profanity, roman
 from .media import NO_WINDOW, run
 
 W, H = config.OUT_W, config.OUT_H
@@ -237,7 +237,7 @@ HOOK_HALF = 130        # how far a heading of up to two lines reaches above and 
 def _pip_box(facecam):
     """Where the webcam goes in the clip: (x, y, width, height), or None when there is no webcam.
 
-    The place is the one in the settings (config.CAM_X, CAM_Y), kept inside the clip."""
+    The place is the one in the settings (Settings, Clips & YouTube, or else PEAKCUT_CAM_X/Y), kept inside the clip."""
     if not facecam or len(facecam) != 4:
         return None
     fx, fy, fw, fh = (int(v) for v in facecam)
@@ -249,8 +249,9 @@ def _pip_box(facecam):
         # to a sensible height and gets narrower instead, still against the same edge
         pip_w, pip_h = max(2, int(round(PIP_MAX_H * fw / fh))), PIP_MAX_H
     pip_w, pip_h = pip_w // 2 * 2, pip_h // 2 * 2          # even sizes, as the video encoder wants
-    x = max(0, min(W - pip_w, int(config.CAM_X)))
-    y = max(0, min(H - pip_h, int(config.CAM_Y)))
+    cx, cy = prefs.cam()
+    x = max(0, min(W - pip_w, int(cx)))
+    y = max(0, min(H - pip_h, int(cy)))
     return x, y, pip_w, pip_h
 
 
@@ -298,7 +299,12 @@ def render_clip(src: Path, out_dir: Path, name: str, clip: dict, words: list, sr
     if layout == "gameplay" and not (face and len(face) == 4):
         layout = "crop"     # no webcam found: the game fills the screen, which is still the right shape
     hook_y = _hook_y(layout, hook_y, face)
-    ass = build_ass(words if clip.get("captions", True) else [], start, end, clip.get("hook", ""), clip.get("style", "bounce"),
+    clean = clip.get("clean", "off")
+    hook, shown = clip.get("hook", ""), words
+    if clean != "off":                       # the swear filter: masked on screen, and bleeped if asked
+        hook, shown = profanity.clean_text(hook), profanity.clean_words(words)
+    beeps = profanity.bleeps(words, start, end) if clean == "bleep" else []
+    ass = build_ass(shown if clip.get("captions", True) else [], start, end, hook, clip.get("style", "bounce"),
                     clip.get("highlight_words", []), hook_y, cap_y)
     # The clip is made in a short work folder and moved into place afterwards. The caption step of ffmpeg cannot
     # open files whose full path is longer than 260 characters on Windows, which a data folder deep inside other
@@ -306,20 +312,38 @@ def render_clip(src: Path, out_dir: Path, name: str, clip: dict, words: list, sr
     # break the filter syntax).
     work = Path(tempfile.mkdtemp(prefix="pk"))
     try:
-        return _render_in(work, src, out_dir, name, start, end, layout, fg_h, ass, face=face)
+        return _render_in(work, src, out_dir, name, start, end, layout, fg_h, ass, face=face, beeps=beeps)
     finally:
         shutil.rmtree(work, ignore_errors=True)
 
 
-def _render_in(work: Path, src: Path, out_dir: Path, name: str, start, end, layout, fg_h, ass: str, face=None) -> dict:
+BEEP_HZ, BEEP_VOL = 1000, 0.22      # the bleep: a plain 1 kHz tone, a little under full loudness
+
+
+def _audio(beeps, dur):
+    """The sound: made even in loudness and, with the swear filter on bleep, each swear word muted and a beep
+    put in its place. Returns (filter graph to add, the label to map)."""
+    norm = "loudnorm=I=-14:TP=-1.5:LRA=11"
+    if not beeps:
+        return f";[0:a:0]{norm}[a]", "[a]"
+    on = "+".join(f"between(t,{a:.3f},{b:.3f})" for a, b in beeps)
+    return (f";[0:a:0]volume=0:enable='{on}',{norm},aresample=48000[a0]"
+            f";sine=frequency={BEEP_HZ}:sample_rate=48000:duration={dur:.2f},volume={BEEP_VOL},"
+            f"volume=0:enable='not({on})'[bp]"
+            f";[a0][bp]amix=inputs=2:duration=first:normalize=0[a]"), "[a]"
+
+
+def _render_in(work: Path, src: Path, out_dir: Path, name: str, start, end, layout, fg_h, ass: str, face=None,
+               beeps=()) -> dict:
     global _qsv_ok
     (work / f"{name}.ass").write_text(ass, encoding="utf-8")
     (work / "f").mkdir()
     for f in config.FONTS_DIR.glob("*.ttf"):
         shutil.copyfile(f, work / "f" / f.name)
-    fc = _filter(layout, fg_h, face) + f"[v0]ass={name}.ass:fontsdir=f[v]"
+    audio, alabel = _audio(list(beeps), end - start)
+    fc = _filter(layout, fg_h, face) + f"[v0]ass={name}.ass:fontsdir=f[v]" + audio
     base = ["ffmpeg", "-y", "-v", "error", "-ss", f"{start:.2f}", "-t", f"{end - start:.2f}", "-i", str(src),
-            "-filter_complex", fc, "-map", "[v]", "-map", "0:a:0", "-af", "loudnorm=I=-14:TP=-1.5:LRA=11",
+            "-filter_complex", fc, "-map", "[v]", "-map", alabel,
             "-c:a", "aac", "-b:a", "160k", "-ar", "48000", "-movflags", "+faststart", "-pix_fmt"]
     encoders = []
     if _qsv_ok is not False:
