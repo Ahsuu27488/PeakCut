@@ -1,8 +1,11 @@
 """Getting video in: link download, probing, audio extraction, loudness."""
 import contextlib
 import json
+import os
 import re
+import shutil
 import subprocess
+import threading
 import time
 from pathlib import Path
 
@@ -20,7 +23,8 @@ NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 YT_PAUSE = 600
 _yt_refused_until = 0.0
 YT_BLOCKED = ("YouTube isn't letting PeakCut download videos right now. Upload the video file instead, or use a "
-              "Twitch or Kick link. YouTube links will be tried again in a few minutes.")
+              "Twitch or Kick link. YouTube links will be tried again in a few minutes. On a cloud server, YouTube "
+              "cookies usually fix this: see PEAKCUT_YT_COOKIES in .env.example.")
 _BOT_CHECK = re.compile(r"not a bot|confirm you.?re not|sign in to confirm(?! your age)", re.I)
 
 
@@ -95,12 +99,56 @@ class _Quiet:
     def error(self, m): pass
 
 
+_cookie_copy = {"src": None, "mtime": None, "path": None}
+_cookie_lock = threading.Lock()
+
+
+def _cookies() -> str | None:
+    """The YouTube cookies file to hand to yt-dlp, or None when there is none.
+
+    yt-dlp writes the cookies back to the file it was given when it is done. So it is given a copy in the
+    temporary folder, made again whenever the file in the settings changes, and the file the owner put there
+    is only ever read."""
+    src = Path(config.YT_COOKIES)
+    try:
+        st = src.stat()
+    except OSError:
+        return None
+    if not st.st_size:
+        return None
+    with _cookie_lock:
+        if _cookie_copy["src"] != str(src) or _cookie_copy["mtime"] != st.st_mtime or not (
+                _cookie_copy["path"] and Path(_cookie_copy["path"]).is_file()):
+            config.TMP_DIR.mkdir(parents=True, exist_ok=True)
+            dst = config.TMP_DIR / "youtube-cookies.in-use.txt"
+            try:
+                shutil.copyfile(src, dst)
+                os.chmod(dst, 0o600)
+            except OSError:
+                return None
+            _cookie_copy.update(src=str(src), mtime=st.st_mtime, path=str(dst))
+        return _cookie_copy["path"]
+
+
+def _js_runtimes() -> dict:
+    """The JavaScript runtimes yt-dlp may use for YouTube's player challenge.
+
+    Without one, YouTube hands out only pictures, no video. yt-dlp looks for Deno by itself; Node.js is used
+    as well when it is installed."""
+    found = {name: {} for name in ("deno", "node") if shutil.which(name)}
+    return {"js_runtimes": found} if found else {}
+
+
 def _ydl(opts):
     import yt_dlp
+    extra = _js_runtimes()
+    cookies = _cookies()
+    if cookies:
+        extra["cookiefile"] = cookies
     # a channel or playlist link is answered as "a list" straight away, never walked video by video
     return yt_dlp.YoutubeDL({"noplaylist": True, "quiet": True, "no_warnings": True, "logger": _Quiet(),
                              "extract_flat": "in_playlist", "playlistend": 1, "socket_timeout": 20,
-                             "concurrent_fragment_downloads": 4, **opts})
+                             "concurrent_fragment_downloads": 4, **extra, **opts})
 
 
 def _video_format(height):
