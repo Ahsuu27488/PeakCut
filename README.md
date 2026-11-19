@@ -108,7 +108,9 @@ limit is reached, PeakCut tries the next model, and if none answers it picks cli
 
 ## Settings
 
-Everything is set through environment variables, normally in a `.env` file next to this README.
+Everything you use day to day is in the dashboard: the AI under **Settings, AI**; the facecam's place, YouTube cookies and YouTube's transcript under **Settings, Clips & YouTube**; where files are kept under **Settings, Storage**; clip options under **Options** and in each creator's setup. What the dashboard saves wins over `.env`.
+
+The server itself is set through environment variables, normally in a `.env` file next to this README.
 [`.env.example`](.env.example) lists every setting with a short explanation. The ones that matter first:
 
 | Setting | What it is for |
@@ -118,8 +120,8 @@ Everything is set through environment variables, normally in a `.env` file next 
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Optional: Sign in with Google, and connecting YouTube |
 | `PEAKCUT_SMTP_*`, `PEAKCUT_MAIL_FROM` | Optional: confirmation and password emails |
 | `PEAKCUT_DATA` | Where videos, clips and the database are kept (default `./data`) |
-| `PEAKCUT_CAM_X`, `PEAKCUT_CAM_Y` | Where the streamer's webcam goes in the gameplay layout (default: flush left, 500 px down). See [Gaming streams](#gaming-streams-the-facecam) |
-| `PEAKCUT_YT_COOKIES` | YouTube cookies for cloud servers. See [YouTube on a cloud server](#youtube-on-a-cloud-server) |
+| `PEAKCUT_CAM_X`, `PEAKCUT_CAM_Y` | Starting place of the streamer's webcam in the gameplay layout (default: flush left, 500 px down). Easier: **Settings, Clips & YouTube**. See [Gaming streams](#gaming-streams-the-facecam) |
+| `PEAKCUT_YT_COOKIES` | A YouTube cookies file somewhere else. Easier: upload it in **Settings, Clips & YouTube**. See [YouTube on a cloud server](#youtube-on-a-cloud-server) |
 
 `.env`, the `secrets/` folder and all user data are ignored by git. Keep keys there, never in the code.
 
@@ -145,9 +147,27 @@ the game simply fills the screen.
 - the game's main character, who is usually in the middle.
 
 A narrow webcam (a phone held upright) is kept to at most 300 px tall and gets narrower instead, still against the
-left edge. To put it somewhere else, set `PEAKCUT_CAM_X` and `PEAKCUT_CAM_Y` in `.env` (the webcam's top-left corner,
-in pixels of the 1080x1920 clip). A position outside the clip is brought back inside it, and if you set it where the
-heading is, the heading moves below the webcam.
+left edge. To put it somewhere else, open **Settings, Clips & YouTube**: a small preview shows the clip with the heading,
+the captions and the apps' buttons, and you move the webcam with the **Recommended**, **Top left** and **Top right**
+buttons or by typing its place in pixels of the 1080x1920 clip. New clips, and clips you re-make, use it.
+(`PEAKCUT_CAM_X` and `PEAKCUT_CAM_Y` in `.env` set the starting place.) A place outside the clip is brought back
+inside it, and if you put the webcam where the heading is, the heading moves below it.
+
+## Swear words
+
+YouTube Shorts in particular shows a clip to fewer people when it swears, and some campaigns don't pay for it. Choose
+what happens to swear words under **Options** for one video, in a creator's setup for all of theirs, or in a clip's
+editor before you re-make it:
+
+| Choice | What it does |
+|---|---|
+| **Keep as spoken** | Nothing is changed (the default). |
+| **Hide in text** | Swear words are masked in the captions, the heading, the title and the description, keeping the first letter: `f***`. Swear hashtags are left out. |
+| **Hide and bleep** | The same, and in the sound each swear word is replaced by a beep. |
+
+English swear words are caught, and the common Hindi and Urdu ones as people type them in Roman letters. Stretched
+spellings (`fuuuck`) are caught too, and ordinary words that only look similar (`class`, `assist`, `cocktail`) are
+left alone. What a game shows on screen (its own subtitles, for instance) is part of the picture and stays as it is.
 
 ## Admins
 
@@ -193,8 +213,9 @@ the video. Cookies from a browser that is signed in to YouTube get past that:
    used from a server.
 2. Export the cookies for youtube.com in the Netscape `cookies.txt` format. A browser extension such as
    "Get cookies.txt LOCALLY" does it.
-3. Put the file in PeakCut's data folder as `youtube-cookies.txt`, or set `PEAKCUT_YT_COOKIES` in `.env` to where it
-   is. No restart is needed: a new or changed file is picked up on the next download.
+3. Upload it in **Settings, Clips & YouTube**. It says how many cookies it got and whether they are from a
+   signed-in browser, and you can replace or remove them there. (Putting the file in PeakCut's data folder as
+   `youtube-cookies.txt`, or setting `PEAKCUT_YT_COOKIES` in `.env`, works too.) No restart is needed.
 
 PeakCut only reads the file; it never changes it or shows it. YouTube also sets a small JavaScript puzzle before it
 hands out a video. PeakCut solves it with Node.js or Deno when one of them is installed, so install Node.js on the
@@ -229,7 +250,7 @@ stream became 5 clips in about 8 minutes.
 - Ask Claude to start PeakCut (`python -m studio.server`) and to clip your links or files.
 - **The AI key.** Paste your Gemini key in **Settings, AI**, or put it in a `.env` file in the PeakCut folder for that
   session. Don't put it in the environment's variables: those are stored as plain text.
-- **YouTube cookies.** Put `youtube-cookies.txt` in the `data` folder (see
+- **YouTube cookies.** Upload them in **Settings, Clips & YouTube** (see
   [YouTube on a cloud server](#youtube-on-a-cloud-server)); YouTube refuses cloud servers without them.
 - **Save your clips before the session ends.** Each session runs on a fresh machine that is deleted afterwards,
   together with the `data` folder: videos, clips, settings and the key. Download the clips (each clip's download

@@ -39,6 +39,8 @@ are there, and only then offer to delete the old folder. Never delete anything w
 | `studio/live.py` | Live recording and clipping |
 | `studio/transcribe.py`, `studio/asr_worker.py` | Speech to text, here or on a second machine |
 | `studio/render.py` | Cutting, layouts and captions (ffmpeg and Pillow) |
+| `studio/profanity.py` | The swear filter: which words count, masking them, and where to beep |
+| `studio/prefs.py` | Settings changed in the dashboard for the whole server (Settings, Clips & YouTube): facecam place, YouTube's transcript, the YouTube cookies file |
 | `studio/media.py` | Downloading (yt-dlp), probing, audio |
 | `studio/auth.py`, `studio/account.py`, `studio/admin.py` | Sign-in, deleting things, the admin dashboard |
 | `studio/db.py` | Database tables (SQLAlchemy core; SQLite or PostgreSQL) |
