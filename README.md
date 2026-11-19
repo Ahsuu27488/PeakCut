@@ -113,6 +113,23 @@ Everything is set through environment variables, normally in a `.env` file next 
 
 `.env`, the `secrets/` folder and all user data are ignored by git. Keep keys there, never in the code.
 
+## Gaming streams: the facecam
+
+For a streamer with a webcam on screen, choose the **Gameplay + facecam** layout under **Options**. The game then
+fills the whole vertical clip and the streamer's webcam is cut out of the stream and placed over it, so viewers see
+the play and the reaction at once.
+
+PeakCut finds the webcam by itself, wherever the streamer put it: any corner, halfway down either side, along the top
+or bottom, with a margin round it, or a phone held upright. When no webcam is found, the game simply fills the screen.
+
+By default the webcam sits flush against the left edge, 500 px down the 1080x1920 clip (a little above the middle),
+380 px wide. That spot is clear of the like, comment and share buttons down the right side of Shorts, Reels and
+TikTok, of the account name and description along the bottom and the search icon at the top right, of the heading
+and the captions, and of the game's main character, who is usually in the middle. A narrow webcam (a phone held
+upright) is kept to at most 300 px tall and gets narrower instead, still against the left edge. To put it somewhere
+else, set `PEAKCUT_CAM_X` and `PEAKCUT_CAM_Y` in `.env` (its top-left corner, in pixels of the clip); if it then sits
+where the heading is, the heading moves below it.
+
 ## Admins
 
 This only matters with accounts switched on (`PEAKCUT_ACCOUNTS=1`); without them you are the owner and can do
