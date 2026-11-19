@@ -76,9 +76,17 @@ If you prefer a file (or run a server), the same three things can go in `.env`. 
 
 ```ini
 PEAKCUT_AI_PROVIDER=gemini
-PEAKCUT_AI_MODELS=gemini-2.5-flash
+PEAKCUT_AI_MODELS=gemini-3.5-flash-lite,gemini-3.1-flash-lite,gemini-3.5-flash
 PEAKCUT_AI_KEY=your-key-here
 ```
+
+**Which Gemini model.** `gemini-2.5-flash` and `gemini-2.5-flash-lite` no longer work with new keys ("no longer
+available to new users"), so pick a newer one in **Settings, AI** or in `.env`. `gemini-3.5-flash-lite` is the
+recommended first choice: it answers in a second or two, it picks good clips, and it has the most generous free
+daily limit (about 500 requests a day on the free tier, against about 20 for the bigger Flash models, according to
+third-party trackers; check Google AI Studio for your key's real limits). One 10-minute video takes only a few
+requests. List a second and third model after it, as above: when Google is overloaded (it answers "high demand") or a
+limit is reached, PeakCut tries the next model, and if none answers it picks clips by loudness instead of failing.
 
 | `PEAKCUT_AI_PROVIDER` | Service | Where to get a key |
 |---|---|---|
@@ -110,8 +118,36 @@ Everything is set through environment variables, normally in a `.env` file next 
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Optional: Sign in with Google, and connecting YouTube |
 | `PEAKCUT_SMTP_*`, `PEAKCUT_MAIL_FROM` | Optional: confirmation and password emails |
 | `PEAKCUT_DATA` | Where videos, clips and the database are kept (default `./data`) |
+| `PEAKCUT_CAM_X`, `PEAKCUT_CAM_Y` | Where the streamer's webcam goes in the gameplay layout (default: flush left, 500 px down). See [Gaming streams](#gaming-streams-the-facecam) |
+| `PEAKCUT_YT_COOKIES` | YouTube cookies for cloud servers. See [YouTube on a cloud server](#youtube-on-a-cloud-server) |
 
 `.env`, the `secrets/` folder and all user data are ignored by git. Keep keys there, never in the code.
+
+## Gaming streams: the facecam
+
+For a streamer with a webcam on screen, choose the **Gameplay + facecam** layout under **Options**. The game then
+fills the whole vertical clip and the streamer's webcam is cut out of the stream and placed over it, so viewers see
+the play and the reaction at once.
+
+**Finding the webcam.** PeakCut finds the webcam by itself, wherever the streamer put it: any corner, halfway down
+either side, along the top or bottom, with a margin round it, or a phone held upright. It looks for the straight
+border that stays in the same place in every frame, and checks that the picture just inside it is still (a room)
+while the game just outside it is moving. That is how a shelf or a lamp inside the webcam, or the game's own panels,
+are not taken for the webcam. One frame can also be shown to the AI as a second opinion. When no webcam is found,
+the game simply fills the screen.
+
+**Where it goes in the clip.** By default the webcam sits flush against the left edge, 500 px down the
+1080x1920 clip (a little above the middle), 380 px wide. That spot is clear of everything else on screen:
+
+- the like, comment and share buttons down the right side of Shorts, Reels and TikTok;
+- the account name and description along the bottom, and the search icon at the top right;
+- the heading at the top and the captions lower down;
+- the game's main character, who is usually in the middle.
+
+A narrow webcam (a phone held upright) is kept to at most 300 px tall and gets narrower instead, still against the
+left edge. To put it somewhere else, set `PEAKCUT_CAM_X` and `PEAKCUT_CAM_Y` in `.env` (the webcam's top-left corner,
+in pixels of the 1080x1920 clip). A position outside the clip is brought back inside it, and if you set it where the
+heading is, the heading moves below the webcam.
 
 ## Admins
 
@@ -147,6 +183,58 @@ default it is the `data` folder inside PeakCut. **Settings, Storage** shows the 
 has, opens it in one click, and lets you move it to another drive: choose the new folder, and PeakCut moves
 everything there the next time it starts. If the drive is nearly full, PeakCut says so and stops taking new videos
 until there is room. (`PEAKCUT_DATA` in `.env` still works and takes priority.)
+
+## YouTube on a cloud server
+
+On a cloud machine or a VPS, YouTube often answers "sign in to confirm you're not a bot" and PeakCut can't download
+the video. Cookies from a browser that is signed in to YouTube get past that:
+
+1. Sign in to YouTube in your browser, with a spare Google account: YouTube may restrict an account whose cookies are
+   used from a server.
+2. Export the cookies for youtube.com in the Netscape `cookies.txt` format. A browser extension such as
+   "Get cookies.txt LOCALLY" does it.
+3. Put the file in PeakCut's data folder as `youtube-cookies.txt`, or set `PEAKCUT_YT_COOKIES` in `.env` to where it
+   is. No restart is needed: a new or changed file is picked up on the next download.
+
+PeakCut only reads the file; it never changes it or shows it. YouTube also sets a small JavaScript puzzle before it
+hands out a video. PeakCut solves it with Node.js or Deno when one of them is installed, so install Node.js on the
+server as well. Signing out of that Google account in your browser cancels the cookies.
+
+## Running it in a Claude cloud environment
+
+PeakCut also runs in a Claude Code cloud environment, so you don't need your own computer for it. The machine we
+tested on had 4 processor cores, 15 GB of memory, about 40 GB of free disk and no graphics card; there a 35-minute
+stream became 5 clips in about 8 minutes.
+
+**Set up the environment once** (Settings, Environments in Claude):
+
+1. Add this repository to the environment.
+2. Use this setup script. It runs at the start of every session, takes about two minutes, and installs PeakCut and
+   its speech model:
+
+   ```bash
+   if [ -d peakcut ]; then
+     cd peakcut
+     python3 -m pip install --quiet --break-system-packages -r requirements.txt
+     python3 -m studio.fetch_model
+   fi
+   ```
+
+3. **Network.** Gemini needs `generativelanguage.googleapis.com`, and the speech model comes from GitHub. YouTube,
+   Twitch and Kick send video from many changing addresses that can't be listed one by one, so for links from those
+   sites give the environment **full network access**. Uploading a file works without it.
+
+**In each session:**
+
+- Ask Claude to start PeakCut (`python -m studio.server`) and to clip your links or files.
+- **The AI key.** Paste your Gemini key in **Settings, AI**, or put it in a `.env` file in the PeakCut folder for that
+  session. Don't put it in the environment's variables: those are stored as plain text.
+- **YouTube cookies.** Put `youtube-cookies.txt` in the `data` folder (see
+  [YouTube on a cloud server](#youtube-on-a-cloud-server)); YouTube refuses cloud servers without them.
+- **Save your clips before the session ends.** Each session runs on a fresh machine that is deleted afterwards,
+  together with the `data` folder: videos, clips, settings and the key. Download the clips (each clip's download
+  button, or all of a video's clips as one zip), or have Claude copy them somewhere that lasts.
+- PeakCut runs only while the session is active.
 
 ## Updating
 

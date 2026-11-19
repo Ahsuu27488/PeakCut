@@ -124,6 +124,12 @@ FONTS_DIR = DATA_DIR / "fonts"          # caption fonts, copied from studio/font
 # YouTube already has a word-by-word transcript of most videos. With this on, that is what the AI reads to find the
 # clips (seconds instead of transcribing hours), and our own model is run only on the clips themselves.
 YT_TRANSCRIPT = env("PEAKCUT_YT_TRANSCRIPT", "1") != "0"
+# YouTube asks servers in data centres (a cloud machine, a VPS) to "sign in to confirm you're not a bot" and
+# downloads nothing. Cookies from a browser signed in to YouTube get past that. Export them in the Netscape
+# cookies.txt format (a browser extension such as "Get cookies.txt LOCALLY" does it) and either put the file
+# in the data folder as youtube-cookies.txt, or point PEAKCUT_YT_COOKIES at it. Use a spare Google account:
+# YouTube may restrict an account whose cookies are used from a server. The file is never changed or shown.
+YT_COOKIES = Path(env("PEAKCUT_YT_COOKIES") or DATA_DIR / "youtube-cookies.txt")
 # the compact model for processors; a machine with a graphics card sets PEAKCUT_ASR_MODEL to the full-precision one
 ASR_MODEL_NAME = env("PEAKCUT_ASR_MODEL", "sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8")
 ASR_MODEL_DIR = MODELS_DIR / ASR_MODEL_NAME
