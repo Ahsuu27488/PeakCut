@@ -7,6 +7,30 @@ Paste a YouTube, Twitch or Kick link (or upload a file) and PeakCut finds the mo
 9:16, adds word-by-word captions and a hook, and can post them to your connected accounts. It can also record a
 creator's live stream and clip the highlights while the stream is still running.
 
+## What's new in this fork
+
+This is a fork of [PeakCut](https://github.com/haziqahmedqasmi/PeakCut) by [@haziqahmedqasmi](https://github.com/haziqahmedqasmi),
+tuned for clipping gaming streams (it was tested on GTA 6 streams). Everything below is offered back to the original
+project as pull requests.
+
+- **Finds the facecam wherever it is.** A small webcam in a busy game was never found, so clips lost the streamer's
+  face. Now it's found in any corner, along any side, with a margin, or as a phone held upright. On an iShowSpeed GTA 6
+  stream, the face went from 0–57% of frames to 98–100%.
+- **Facecam on the left, clear of the apps' buttons.** In the gameplay layout the webcam sits flush left, a little
+  above the middle, clear of Shorts/Reels/TikTok's buttons and text, the heading, the captions and the main character.
+  Move it in **Settings, Clips & YouTube**.
+- **Swear filter.** Keep as spoken, hide in text (`f***`), or hide and **bleep** in the sound. Covers English and Hindi/Urdu
+  in Roman letters. Set it per video, per creator, or per clip.
+- **YouTube on cloud servers.** Upload YouTube cookies in **Settings, Clips & YouTube** to get past "confirm you're not
+  a bot", and YouTube's JavaScript challenge is solved with Node.js.
+- **Every clip setting in the dashboard.** Facecam place, YouTube cookies and YouTube's transcript are in Settings
+  instead of `.env`.
+- **A working Gemini default.** `gemini-3.5-flash-lite` instead of `gemini-2.5-flash`, which new keys can't use.
+
+| Before / after: the facecam | The new Settings page |
+|---|---|
+| ![Facecam before and after](https://raw.githubusercontent.com/Ahsuu27488/PeakCut/media/pr-images/facecam-before-after.jpg) | ![Settings, Clips & YouTube](https://raw.githubusercontent.com/Ahsuu27488/PeakCut/media/pr-images/settings-clips-youtube.jpg) |
+
 ## What it does
 
 - **Clips from any video.** Transcribes the audio, asks an AI which moments would hold a stranger's attention, and
@@ -34,7 +58,7 @@ installs it for you, it should ask you where to put it first ([AGENTS.md](AGENTS
 On Windows:
 
 ```bash
-git clone <this repository> C:\peakcut
+git clone https://github.com/Ahsuu27488/PeakCut C:\peakcut
 ```
 
 ```bash
@@ -44,7 +68,7 @@ cd C:\peakcut
 On a Mac or Linux:
 
 ```bash
-git clone <this repository> ~/peakcut
+git clone https://github.com/Ahsuu27488/PeakCut ~/peakcut
 ```
 
 ```bash
