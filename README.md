@@ -165,6 +165,22 @@ has, opens it in one click, and lets you move it to another drive: choose the ne
 everything there the next time it starts. If the drive is nearly full, PeakCut says so and stops taking new videos
 until there is room. (`PEAKCUT_DATA` in `.env` still works and takes priority.)
 
+## YouTube on a cloud server
+
+On a cloud machine or a VPS, YouTube often answers "sign in to confirm you're not a bot" and PeakCut can't download
+the video. Cookies from a browser that is signed in to YouTube get past that:
+
+1. Sign in to YouTube in your browser, with a spare Google account: YouTube may restrict an account whose cookies are
+   used from a server.
+2. Export the cookies for youtube.com in the Netscape `cookies.txt` format. A browser extension such as
+   "Get cookies.txt LOCALLY" does it.
+3. Put the file in PeakCut's data folder as `youtube-cookies.txt`, or set `PEAKCUT_YT_COOKIES` in `.env` to where it
+   is. No restart is needed: a new or changed file is picked up on the next download.
+
+PeakCut only reads the file; it never changes it or shows it. YouTube also sets a small JavaScript puzzle before it
+hands out a video. PeakCut solves it with Node.js or Deno when one of them is installed, so install Node.js on the
+server as well. Signing out of that Google account in your browser cancels the cookies.
+
 ## Updating
 
 PeakCut checks GitHub once a minute while it runs. When a newer version is out, the dashboard shows a notice

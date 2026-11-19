@@ -56,6 +56,7 @@ def main() -> int:
                 ("turning captions off and back on", ["tests/test_captions.py"]),
                 ("connecting YouTube, Instagram and TikTok", ["tests/test_connect.py"]),
                 ("the new-version notice", ["tests/test_updates.py"]),
+                ("YouTube cookies for cloud servers", ["tests/test_youtube_cookies.py"]),
                 ("no limits by default", ["tests/test_limits.py"]),
                 ("captions never overlap, stuck clips, sentence endings", ["tests/test_stuck.py"]),
                 ("ad breaks and frozen screens", ["tests/test_static.py"]),
