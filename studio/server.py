@@ -22,7 +22,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Redirect
 from . import admin as admins
 from . import account, load
 from . import (accounts, ai, alerts, auth, config, creators, ctx, db, jobs, live, media, posting,
-               profiles, render, safe, transcribe, usage)
+               prefs, profanity, profiles, render, safe, transcribe, usage)
 
 from . import tools as _tools  # noqa: E402
 
@@ -577,7 +577,8 @@ def status(request: Request):
     return {"user": auth.public(me_), "update": updates.latest() if me_.is_admin else None, "accounts": config.ACCOUNTS, "disk_full": load.disk_full(), "no_ffmpeg": bool(_tools.missing()), "links": {"repo": config.REPO_URL, "follow": config.FOLLOW_URL}, "ai": usage.brief(), "unread": notices.unread(),
             "tour": not accounts.settings()["tour_done"],
             "youtube": accounts.youtube_ready(), "connect": {p: accounts.can_connect(p) for p in accounts.PLATFORM_NAMES}, "max_upload_mb": config.MAX_UPLOAD_MB, "upload_part_mb": config.UPLOAD_PART_MB, "max_batch": config.MAX_ACTIVE_JOBS_PER_USER,
-            "styles": {k: v["label"] for k, v in render.STYLES.items()}, "layouts": render.LAYOUTS}
+            "styles": {k: v["label"] for k, v in render.STYLES.items()}, "layouts": render.LAYOUTS,
+            "cleans": profanity.MODES}
 
 
 # ================================================================ videos
@@ -1432,6 +1433,40 @@ def storage_put(request: Request, body: dict = Body(...)):
     except ValueError as e:
         raise HTTPException(400, str(e))
     return storage.info(_on_this_computer(request))
+
+
+@app.get("/api/prefs")
+def prefs_get(request: Request):
+    _admin(request)
+    return prefs.public()
+
+
+@app.put("/api/prefs")
+def prefs_put(request: Request, body: dict = Body(...)):
+    _admin(request)
+    try:
+        return prefs.save(body)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.post("/api/prefs/youtube-cookies")
+def prefs_cookies_put(request: Request, file: UploadFile = File(...)):
+    _admin(request)
+    try:
+        data = file.file.read(prefs.MAX_COOKIES_BYTES + 1)
+        return prefs.save_cookies(data)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.delete("/api/prefs/youtube-cookies")
+def prefs_cookies_delete(request: Request):
+    _admin(request)
+    try:
+        return prefs.remove_cookies()
+    except ValueError as e:
+        raise HTTPException(400, str(e))
 
 
 @app.get("/api/apps")
