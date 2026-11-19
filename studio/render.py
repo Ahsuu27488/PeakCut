@@ -230,19 +230,41 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
 PIP_W = 380            # how wide the facecam is in the 1080-wide frame
 PIP_MARGIN = 26
+PIP_MAX_H = 300        # the tallest the facecam may be; a narrower webcam gets narrower, not taller
+HOOK_HALF = 130        # how far a heading of up to two lines reaches above and below its centre
+
+
+def _pip_box(facecam):
+    """Where the webcam goes in the clip: (x, y, width, height), or None when there is no webcam.
+
+    The place is the one in the settings (config.CAM_X, CAM_Y), kept inside the clip."""
+    if not facecam or len(facecam) != 4:
+        return None
+    fx, fy, fw, fh = (int(v) for v in facecam)
+    if fw <= 8 or fh <= 8:
+        return None
+    pip_w, pip_h = PIP_W, max(2, int(round(PIP_W * fh / fw)))
+    if pip_h > PIP_MAX_H:
+        # a narrow webcam (a phone held upright) would come out very tall at the usual width: it is kept
+        # to a sensible height and gets narrower instead, still against the same edge
+        pip_w, pip_h = max(2, int(round(PIP_MAX_H * fw / fh))), PIP_MAX_H
+    pip_w, pip_h = pip_w // 2 * 2, pip_h // 2 * 2          # even sizes, as the video encoder wants
+    x = max(0, min(W - pip_w, int(config.CAM_X)))
+    y = max(0, min(H - pip_h, int(config.CAM_Y)))
+    return x, y, pip_w, pip_h
 
 
 def _filter(layout, fg_h, facecam=None):
-    if layout == "gameplay" and facecam:
-        # The game fills the screen, and the webcam sits in the top corner of it, so a viewer sees
-        # the play and the face at the same time.
+    pip = _pip_box(facecam) if layout == "gameplay" else None
+    if pip:
+        # The game fills the screen, and the webcam sits over it where the settings put it (by default
+        # on the left, a little above the middle), so a viewer sees the play and the face at once.
         fx, fy, fw, fh = (int(v) for v in facecam)
-        if fw > 8 and fh > 8:
-            pip_h = max(2, int(round(PIP_W * fh / fw)))
-            return (f"[0:v]fps={config.OUT_FPS},split=2[base][fc];"
-                    f"[base]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},setsar=1[b];"
-                    f"[fc]crop={fw}:{fh}:{fx}:{fy},scale={PIP_W}:{pip_h},setsar=1[p];"
-                    f"[b][p]overlay={W - PIP_W - PIP_MARGIN}:{PIP_MARGIN}[v0];")
+        px, py, pw, ph = pip
+        return (f"[0:v]fps={config.OUT_FPS},split=2[base][fc];"
+                f"[base]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},setsar=1[b];"
+                f"[fc]crop={fw}:{fh}:{fx}:{fy},scale={pw}:{ph},setsar=1[p];"
+                f"[b][p]overlay={px}:{py}[v0];")
     if layout == "crop" or (layout == "gameplay" and not facecam):
         return f"[0:v]fps={config.OUT_FPS},scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},setsar=1[v0];"
     return (f"[0:v]fps={config.OUT_FPS},split=2[a][b];"
@@ -253,10 +275,13 @@ def _filter(layout, fg_h, facecam=None):
 
 
 def _hook_y(layout, hook_y, facecam=None):
-    """Where the heading goes. In the gameplay layout the webcam sits in the top corner, so a heading
-    across the top would run under it: it goes just below the picture instead."""
-    if layout == "gameplay" and facecam and len(facecam) == 4 and facecam[2] > 8:
-        return PIP_MARGIN + int(round(PIP_W * facecam[3] / facecam[2])) + 32
+    """Where the heading goes. It stays where it is unless the webcam has been set where the heading
+    would run under it; then it goes just below the picture instead."""
+    pip = _pip_box(facecam) if layout == "gameplay" else None
+    if pip:
+        _, py, _, ph = pip
+        if py < hook_y + HOOK_HALF and py + ph > hook_y - HOOK_HALF:
+            return py + ph + HOOK_HALF + 16
     return hook_y
 
 
