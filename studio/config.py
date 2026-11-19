@@ -252,3 +252,11 @@ def _read_google_client() -> tuple:
 # ---------------------------------------------------------------- video
 MAX_SOURCE_HEIGHT = 1080
 OUT_W, OUT_H, OUT_FPS = 1080, 1920, 30
+# Where the streamer's webcam goes in the gameplay layout, in pixels of the 1080x1920 clip (its top-left
+# corner). The default is flush against the left edge, so it never floats in the air whatever its width,
+# a little above the middle: clear of the like/comment/share buttons
+# down the right of Shorts, Reels and TikTok, of the name and description along the bottom, of the search
+# icon at the top right, of the heading and of the captions, and above the game's main character, who is
+# usually in the middle. Both are clamped so the webcam always stays inside the clip.
+CAM_X = int(env("PEAKCUT_CAM_X") or "0")
+CAM_Y = int(env("PEAKCUT_CAM_Y") or "500")

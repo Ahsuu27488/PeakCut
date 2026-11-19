@@ -7,7 +7,7 @@ Runs against the code directly, with its own empty data folder."""
 import os, shutil, subprocess, sys, tempfile
 os.environ["PEAKCUT_DATA"] = tempfile.mkdtemp(prefix="pc-facecam-")
 sys.path.insert(0, ".")
-from studio import facecam, render
+from studio import config, facecam, render
 fails = []
 def check(n, got, want=True):
     ok = want(got) if callable(want) else got == want
@@ -43,11 +43,13 @@ try:
     check("its height is right", abs((box or {}).get("h", 0) - 170) <= 1, True)
     check("it is sure of it", (box or {}).get("conf"), "high")
 
-    # ---- the same box in another corner
+    # ---- the same box on the right side, 50 pixels up from the bottom: not in the corner
     cam_br = make("cam_br.mp4", "color=c=0xC08050:size=300x170:rate=25", where="980:500")
     box = facecam.detect(cam_br)
-    check("a webcam in the bottom-right is found too", (box or {}).get("corner"), "bottom-right")
+    check("a webcam on the right, above the bottom, is found too", (box or {}).get("corner"), "right")
     check("its position is right", abs((box or {}).get("x", 0) - 980) <= 1, True)
+    # the game below it is not taken for part of the webcam
+    check("it stops where the picture stops", abs((box or {}).get("h", 0) - 170) <= 2, True)
 
     # ---- a video with no webcam in it: nothing that stays still, so nothing is found
     plain = os.path.join(work, "plain.mp4")
@@ -102,20 +104,37 @@ try:
     with patch.object(_ai, "see", return_value=("I am a text model.", 0, 0)):
         check("an answer that is neither is not believed", brain.look_for_facecam(b"jpeg")["looked"], False)
 
-    # ---- the layout: the game fills the screen and the webcam sits in the corner
+    # ---- the layout: the game fills the screen and the webcam sits on the left, a little above the middle
     f = render._filter("gameplay", 1920, [0, 0, 300, 170])
     check("the game fills the screen", "scale=1080:1920" in f and "crop=1080:1920" in f, True)
     check("the webcam is cropped out of the source", "crop=300:170:0:0" in f, True)
-    check("the webcam is put in the corner", "overlay=" in f, True)
+    check("by default the webcam is flush against the left edge", config.CAM_X, 0)
+    check("the webcam goes where the settings say (left, a little above the middle)",
+          f"overlay={config.CAM_X}:{config.CAM_Y}" in f, True)
+    check("by default that is clear of the apps' buttons on the right", config.CAM_X + render.PIP_W < 900, True)
     check("without a webcam the game simply fills the screen",
           "scale=1080:1920" in render._filter("gameplay", 1920, None) and "overlay=" not in render._filter("gameplay", 1920, None), True)
     check("the layout is offered to the user", "gameplay" in render.LAYOUTS, True)
-    # the heading must not run under the webcam picture
-    pip_h = 380 * 376 / 363
-    check("the heading goes below the webcam picture", render._hook_y("gameplay", 300, [0, 0, 363, 376]) > 26 + pip_h, True)
-    check("another picture moves the heading with it",
-          render._hook_y("gameplay", 300, [0, 0, 300, 170]) < render._hook_y("gameplay", 300, [0, 0, 363, 376]), True)
+    # with the webcam below the heading, the heading stays where it is
+    check("the heading stays at the top when the webcam is below it", render._hook_y("gameplay", 300, [0, 0, 363, 376]), 300)
     check("without a webcam the heading stays at the top", render._hook_y("crop", 300, None), 300)
+    # a webcam set high up, where the heading is, pushes the heading below the picture
+    with patch.object(config, "CAM_Y", 26):
+        _, top, _, pip_h = render._pip_box([0, 0, 363, 376])
+        check("a webcam set over the heading pushes it below the picture",
+              render._hook_y("gameplay", 300, [0, 0, 363, 376]) - render.HOOK_HALF >= top + pip_h, True)
+        check("a webcam set at the top is put at the top",
+              f"overlay={config.CAM_X}:26" in render._filter("gameplay", 1920, [0, 0, 300, 170]), True)
+    # a position outside the clip is brought back inside it
+    with patch.object(config, "CAM_X", 5000), patch.object(config, "CAM_Y", -40):
+        check("a webcam set outside the clip is kept inside it",
+              "overlay=700:0" in render._filter("gameplay", 1920, [0, 0, 300, 170]), True)
+    # a narrow webcam keeps a sensible height, gets narrower, and still sits against the left edge
+    tall = render._pip_box([0, 0, 180, 320])
+    check("a narrow webcam is not made taller than the limit", tall[3] <= render.PIP_MAX_H, True)
+    check("a narrow webcam gets narrower instead", tall[2] < render.PIP_W, True)
+    check("a narrow webcam still sits against the left edge", tall[0], 0)
+    check("its shape is kept", abs(tall[2] / tall[3] - 180 / 320) < 0.02, True)
 finally:
     shutil.rmtree(work, ignore_errors=True)      # the pictures are big; they must not be left behind
 
