@@ -58,7 +58,9 @@ check("something that is not a cookies file is refused", a.put("/api/youtube-coo
 r = a.put("/api/youtube-cookies", json={"text": COOK}, headers=ORIGIN)
 check("cookies saved", (r.status_code, r.json()["saved"]), (200, True))
 check("the cookies are never sent back", "secret-cookie-value" in a.get("/api/youtube-cookies").text, False)
-check("downloads use them", media.cookie_opts(), {"cookiefile": str(config.YT_COOKIES)})
+used = media.cookie_opts().get("cookiefile")
+check("downloads use them", bool(used) and "secret-cookie-value" in Path(used).read_text(), True)
+check("...as a copy, so yt-dlp writing cookies back never changes the saved ones", used != str(config.YT_COOKIES), True)
 a.put("/api/youtube-cookies", json={"remove": True}, headers=ORIGIN)
 check("...until they are removed", (config.YT_COOKIES.exists(), media.cookie_opts()), (False, {}))
 
