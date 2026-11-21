@@ -78,7 +78,14 @@ with patch.object(media.shutil, "which", lambda name: None):
         check("the caller's own options are kept", ydl.params.get("format"), "ba")
 
 # ---- when YouTube refuses, the message says what fixes it on a server
-check("the 'YouTube refused' message points to the cookies setting", "PEAKCUT_YT_COOKIES" in media.YT_BLOCKED, True)
+check("the 'YouTube refused' message points to the cookies setting", "cookies" in media.YT_BLOCKED, True)
+
+# ---- live recordings use the same copy and the same JavaScript runtimes
+own.write_text(COOKIES)
+check("live recordings get the copy too, not the saved file", media.cookie_opts().get("cookiefile") not in (None, str(own)), True)
+own.unlink()
+with patch.object(media.shutil, "which", lambda name: "/usr/bin/node" if name == "node" else None):
+    check("live recordings can solve YouTube's puzzle with Node.js", media.js_opts(), {"js_runtimes": {"node": {}}})
 
 print("\nALL PASSED" if not fails else f"\n{len(fails)} FAILED")
 sys.exit(1 if fails else 0)

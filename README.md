@@ -98,6 +98,14 @@ PEAKCUT_AI_KEY=your-key-here
   tokens each video took.
 - Speech to text does not use the AI service. It runs on your own machine, so audio never leaves it.
 
+### Videos in Arabic
+
+PeakCut hears English by default. To clip videos in Arabic, add the Arabic speech model once in
+**Settings → Speech models** (about 107 MB), or choose **Arabic** under Options when adding a video and PeakCut
+offers to download it. Set a creator's language on their Setup page so their live recordings use it too.
+It understands Modern Standard Arabic and everyday dialects, and the AI turns English words said in between
+back into English. Captions on the clips are in English.
+
 ## Settings
 
 Everything is set through environment variables, normally in a `.env` file next to this README.
@@ -135,7 +143,9 @@ python -m studio.admin grant you@example.com
 | `tests/` | Tests that run against a throwaway copy of the app |
 | `deploy/`, `Dockerfile`, `docker-compose.yml` | One-server deployment with PostgreSQL and automatic HTTPS |
 
-Video work is done with `ffmpeg` and `yt-dlp`. Speech is transcribed with `sherpa-onnx` and the Parakeet model.
+Video work is done with `ffmpeg` and `yt-dlp`. Speech is transcribed with `sherpa-onnx` and NVIDIA's Parakeet
+model (English) and FastConformer Arabic model, both released by NVIDIA under the Creative Commons Attribution 4.0
+licence (CC-BY-4.0). The Arabic model was converted for sherpa-onnx with `tools/export_arabic_model.py`.
 Data is kept per user: accounts in the database (SQLite on your own computer, PostgreSQL on a server), videos and
 clips in each user's own folder. [AGENTS.md](AGENTS.md) is a short map of the code for contributors and AI coding
 assistants.
@@ -157,10 +167,11 @@ the video. Cookies from a browser that is signed in to YouTube get past that:
    used from a server.
 2. Export the cookies for youtube.com in the Netscape `cookies.txt` format. A browser extension such as
    "Get cookies.txt LOCALLY" does it.
-3. Put the file in PeakCut's data folder as `youtube-cookies.txt`, or set `PEAKCUT_YT_COOKIES` in `.env` to where it
-   is. No restart is needed: a new or changed file is picked up on the next download.
+3. As an admin, paste them under **Settings, Connected apps**. (A `youtube-cookies.txt` file in the data folder, or
+   `PEAKCUT_YT_COOKIES` in `.env`, works too.) No restart is needed: new cookies are used on the next download.
 
-PeakCut only reads the file; it never changes it or shows it. YouTube also sets a small JavaScript puzzle before it
+Downloads use a private copy, so the saved cookies are never changed: yt-dlp writes cookies back to its file when it
+is done. YouTube also sets a small JavaScript puzzle before it
 hands out a video. PeakCut solves it with Node.js or Deno when one of them is installed, so install Node.js on the
 server as well. Signing out of that Google account in your browser cancels the cookies.
 
